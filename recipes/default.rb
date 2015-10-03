@@ -31,8 +31,8 @@ package "linux-image-extra-#{node['os_version']}"
 end
 
 # install cuda
-remote_file "#{software_dir}/cuda-repo-ubuntu1404_6.5-14_amd64.deb" do
-  source "http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_6.5-14_amd64.deb"
+remote_file "#{software_dir}/cuda-repo-ubuntu1404_7.5-18_amd64" do
+  source "http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1404/x86_64/cuda-repo-ubuntu1404_7.5-18_amd64.deb"
   action :create_if_missing
   notifies :run, 'bash[install-cuda-repo]', :immediately
   owner local_user
@@ -40,7 +40,7 @@ remote_file "#{software_dir}/cuda-repo-ubuntu1404_6.5-14_amd64.deb" do
 end
 bash 'install-cuda-repo' do
   action :nothing
-  code "dpkg -i #{software_dir}/cuda-repo-ubuntu1404_6.5-14_amd64.deb"
+  code "dpkg -i #{software_dir}/cuda-repo-ubuntu1404_7.5-18_amd64"
   notifies :run, 'execute[apt-get update]', :immediately
 end
 # https://bugs.launchpad.net/ubuntu/+source/nvidia-graphics-drivers-331/+bug/1401390
@@ -64,20 +64,20 @@ if File.exists? "#{File.dirname(__FILE__)}/../files/default/cudnn-tarball/#{cudn
     group local_group
   end
   execute 'cp cudnn.h /usr/local/include' do
-    cwd "#{software_dir}/#{node['caffe']['cudnn_tarball_name_wo_tgz']}"
+    cwd "#{software_dir}/cuda/include"
     not_if { FileTest.exists? "/usr/local/include/cudnn.h" }
   end
-  [ 'libcudnn_static.a', 'libcudnn.so.6.5.18' ].each do |lib|
+  [ 'libcudnn_static.a', 'libcudnn.so.7.0.64' ].each do |lib|
     execute "cp #{lib} /usr/local/lib" do
-    cwd "#{software_dir}/#{node['caffe']['cudnn_tarball_name_wo_tgz']}"
+    cwd "#{software_dir}/cuda/lib64"
       not_if { FileTest.exists? "/usr/local/lib/#{lib}" }
     end
   end
-  link "/usr/local/lib/libcudnn.so.6.5" do
-    to "/usr/local/lib/libcudnn.so.6.5.18"
+  link "/usr/local/lib/libcudnn.so.7.0" do
+    to "/usr/local/lib/libcudnn.so.7.0.64"
   end
   link "/usr/local/lib/libcudnn.so" do
-    to "/usr/local/lib/libcudnn.so.6.5"
+    to "/usr/local/lib/libcudnn.so.7.0"
   end
   cudnn_installed = true
 end
@@ -86,7 +86,7 @@ end
 file "/etc/ld.so.conf.d/caffe.conf" do
   owner "root"
   group "root"
-  content "/usr/local/cuda-6.5/targets/x86_64-linux/lib"
+  content "/usr/local/cuda-7.5/targets/x86_64-linux/lib"
   notifies :run, 'execute[ldconfig]', :immediately
 end
 execute 'ldconfig' do
@@ -96,7 +96,7 @@ end
 # download caffe and setup initial Makefile.config
 git "#{software_dir}/caffe" do
   repository "https://github.com/BVLC/caffe.git"
-  revision "e8dee350ade66a712144aebc8b5f4a8c989d43c0" # master as of Dec 13, 2014
+  revision "6eae122a8eb84f8371dde815986cd7524fc4cbaa" # 1 October 2015
   action :sync
   user local_user
   group local_group
@@ -121,7 +121,7 @@ end
 # make caffe!
 execute 'build-caffe' do
   cwd "#{software_dir}/caffe"
-  command "make all -j8"
+  command "make all -j8 "
   creates "#{software_dir}/caffe/build"
   user local_user
   group local_group
